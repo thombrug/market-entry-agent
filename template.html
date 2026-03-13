@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Entry Analysis — {{ market_name }}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: #f8fafc; color: #1e293b; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+             color: white; padding: 2.5rem 2rem; border-radius: 12px; margin-bottom: 2rem; }
+  .header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .header .meta { opacity: 0.8; font-size: 0.9rem; }
+
+  /* Verdict badge */
+  .verdict-banner { display: flex; align-items: center; gap: 1.5rem;
+                    padding: 1.5rem 2rem; border-radius: 10px; margin-bottom: 2rem;
+                    border-left: 6px solid; }
+  .verdict-attractive { background: #f0fdf4; border-color: #16a34a; }
+  .verdict-conditional { background: #fffbeb; border-color: #d97706; }
+  .verdict-avoid       { background: #fef2f2; border-color: #dc2626; }
+  .verdict-badge { font-size: 1.4rem; font-weight: 800; }
+  .verdict-attractive .verdict-badge { color: #16a34a; }
+  .verdict-conditional .verdict-badge { color: #d97706; }
+  .verdict-avoid .verdict-badge       { color: #dc2626; }
+  .eas-score { font-size: 3rem; font-weight: 900; }
+  .verdict-attractive .eas-score { color: #16a34a; }
+  .verdict-conditional .eas-score { color: #d97706; }
+  .verdict-avoid .eas-score       { color: #dc2626; }
+  .eas-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Sections */
+  .section { background: white; border-radius: 10px; padding: 1.5rem;
+             margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .section h2 { font-size: 1.1rem; font-weight: 700; color: #1e293b;
+                margin-bottom: 1rem; padding-bottom: 0.5rem;
+                border-bottom: 2px solid #e2e8f0; }
+
+  /* Radar chart */
+  .radar-container { display: flex; justify-content: center; padding: 1rem 0; }
+
+  /* Dimension table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { background: #f1f5f9; text-align: left; padding: 0.6rem 0.8rem;
+       font-weight: 600; color: #475569; }
+  td { padding: 0.7rem 0.8rem; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .score-pill { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 99px;
+                font-weight: 700; font-size: 0.85rem; }
+  .score-1 { background: #d1fae5; color: #065f46; }
+  .score-2 { background: #d1fae5; color: #065f46; }
+  .score-3 { background: #fef3c7; color: #92400e; }
+  .score-4 { background: #fee2e2; color: #991b1b; }
+  .score-5 { background: #fee2e2; color: #991b1b; }
+  .factors { font-size: 0.8rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* Risks */
+  .risk-list { list-style: none; }
+  .risk-list li { padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9;
+                  padding-left: 1.2rem; position: relative; }
+  .risk-list li::before { content: "▲"; position: absolute; left: 0;
+                           color: #ef4444; font-size: 0.7rem; top: 0.6rem; }
+
+  /* Recommendation */
+  .recommendation { background: #f8fafc; border-radius: 8px; padding: 1.2rem;
+                    font-style: italic; color: #334155; line-height: 1.7; }
+  .entry-mode { margin-top: 0.8rem; font-style: normal; font-weight: 600;
+                color: #2563eb; font-size: 0.9rem; }
+
+  /* Footer */
+  .footer { text-align: center; font-size: 0.8rem; color: #94a3b8;
+            margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #2563eb; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Market Entry Analysis</h1>
+    <div class="meta">{{ market_name }} &mdash; {{ analysis_date }}</div>
+  </div>
+
+  <!-- Verdict banner -->
+  {% set verdict_class = "verdict-attractive" if "Attractive" in verdict else
+                         ("verdict-conditional" if "Conditional" in verdict else "verdict-avoid") %}
+  <div class="verdict-banner {{ verdict_class }}">
+    <div>
+      <div class="eas-label">Entry Attractiveness Score</div>
+      <div class="eas-score">{{ entry_attractiveness_score }}</div>
+    </div>
+    <div>
+      <div class="verdict-badge">{{ verdict }}</div>
+      <div style="font-size:0.85rem; color:#64748b; margin-top:0.3rem;">
+        Confidence: {{ confidence }} &nbsp;|&nbsp; Mode: {{ suggested_entry_mode }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Radar chart (inline SVG) -->
+  <div class="section">
+    <h2>Dimension Overview</h2>
+    <div class="radar-container">
+      {% set cx = 200 %}
+      {% set cy = 200 %}
+      {% set r_max = 150 %}
+      {% set n = dimensions | length %}
+      <svg width="400" height="400" viewBox="0 0 400 400">
+        <!-- Grid rings -->
+        {% for ring in [1,2,3,4,5] %}
+          {% set r = r_max * ring / 5 %}
+          <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ r }}"
+                  fill="none" stroke="#e2e8f0" stroke-width="1"/>
+          <text x="{{ cx + r + 4 }}" y="{{ cy }}" font-size="9" fill="#94a3b8">{{ ring }}</text>
+        {% endfor %}
+        <!-- Axis lines + labels: coordinates precomputed by renderer.py -->
+        <!-- Axis lines (6 axes for 6 dims) -->
+        {% if axis_points is defined %}
+          {% for ap in axis_points %}
+            <line x1="{{ cx }}" y1="{{ cy }}"
+                  x2="{{ ap.x }}" y2="{{ ap.y }}"
+                  stroke="#e2e8f0" stroke-width="1"/>
+            <text x="{{ ap.lx }}" y="{{ ap.ly }}"
+                  text-anchor="middle" font-size="10" fill="#475569">{{ ap.label }}</text>
+          {% endfor %}
+        {% endif %}
+
+        <!-- Score polygon -->
+        {% if score_polygon is defined %}
+          <polygon points="{{ score_polygon }}"
+                   fill="rgba(37,99,235,0.15)" stroke="#2563eb" stroke-width="2"/>
+        {% endif %}
+
+        <!-- Score dots -->
+        {% if score_dots is defined %}
+          {% for dot in score_dots %}
+            <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="5"
+                    fill="#2563eb" stroke="white" stroke-width="1.5"/>
+          {% endfor %}
+        {% endif %}
+      </svg>
+    </div>
+  </div>
+
+  <!-- Dimension table -->
+  <div class="section">
+    <h2>Dimension Breakdown</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Score</th>
+          <th style="width:6%">Weight</th>
+          <th style="width:8%">Wtd Score</th>
+          <th>Key Factors &amp; Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dim in dimensions %}
+        <tr>
+          <td style="font-weight:600">{{ dim.name }}</td>
+          <td><span class="score-pill score-{{ dim.score }}">{{ dim.score }}/5</span></td>
+          <td style="color:#64748b">{{ (dim.weight * 100) | int }}%</td>
+          <td style="color:#64748b">{{ (dim.weight * dim.score) | round(2) }}</td>
+          <td>
+            <div class="factors">
+              {% for f in dim.key_factors %}&bullet; {{ f }}{% if not loop.last %} &nbsp;&nbsp;{% endif %}{% endfor %}
+            </div>
+            <div style="font-size:0.8rem; color:#334155; margin-top:0.3rem">{{ dim.evidence }}</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Critical risks -->
+  <div class="section">
+    <h2>Critical Risks</h2>
+    <ul class="risk-list">
+      {% for risk in critical_risks %}
+      <li>{{ risk }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Strategic recommendation -->
+  <div class="section">
+    <h2>Strategic Recommendation</h2>
+    <div class="recommendation">
+      {{ strategic_recommendation }}
+      <div class="entry-mode">Suggested entry mode: {{ suggested_entry_mode }}</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Methodology: Porter Five Forces (2008) &bull; Bain Barriers to Entry (1956)</p>
+    <p>Primary reference: McAfee, Mialon &amp; Williams (2004).
+       <a href="https://doi.org/{{ doi }}" target="_blank">DOI: {{ doi }}</a>
+    </p>
+  </div>
+
+</div>
+</body>
+</html>
