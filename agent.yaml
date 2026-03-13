@@ -1,0 +1,197 @@
+name: market-entry-agent
+title: Market Entry Attractiveness Agent
+version: 1.0.0
+license: MIT
+description: >
+  Scores a market entry opportunity across six Porter/Bain dimensions — barriers to entry,
+  incumbent retaliation risk, market attractiveness, competitive rivalry, buyer power, and
+  supplier power — and returns a normalized Entry Attractiveness Score (0-100) with verdict
+  (Attractive/Conditional/Avoid) and strategic recommendation. Designed for use by orchestrator
+  agents as a structured, machine-to-machine analysis tool.
+
+tags:
+  - market-entry
+  - porter-five-forces
+  - barriers-to-entry
+  - competitive-strategy
+  - economics
+
+references:
+  - type: doi
+    id: 10.1257/0002828041302235
+    description: >
+      McAfee, R.P., Mialon, H.M., & Williams, M.A. (2004). What Is a Barrier to Entry?
+      American Economic Review, 94(2), 461-465. Primary economic definition of entry barriers.
+  - type: book
+    id: Porter-1980
+    description: >
+      Porter, M.E. (1980). Competitive Strategy: Techniques for Analyzing Industries
+      and Competitors. Free Press. Five Forces framework.
+  - type: book
+    id: Bain-1956
+    description: >
+      Bain, J.S. (1956). Barriers to New Competition. Harvard University Press.
+      Barriers taxonomy: capital requirements, scale economies, product differentiation.
+
+fields:
+  - "5.2"   # OECD: Economics and Business
+  - "5.3"   # OECD: Business and Management
+
+files:
+  - path: schema.py
+    description: Pydantic input/output models (EntryAnalysisInput, EntryScorecard, DimensionScore)
+  - path: agent.py
+    description: Gemini API call with response_schema + post-call EAS recomputation
+  - path: prompts.py
+    description: System prompt embedding Porter/Bain framework guidance
+  - path: renderer.py
+    description: Jinja2 HTML report renderer with radar chart geometry
+  - path: template.html
+    description: Self-contained HTML report template (no external CDN)
+  - path: main.py
+    description: CLI entry point (stdin-json / stdout-json / file / --example modes)
+
+runtime:
+  env:
+    - name: GEMINI_API_KEY
+      required: true
+      description: Google Gemini API key for gemini-2.0-flash inference
+  conventions:
+    - stdin-json
+    - stdout-json
+    - exit-codes
+  test_command: "python main.py --example --json-only"
+  capacity:
+    typical_latency_seconds: 10
+
+examples:
+  - label: EV Charging Networks — Germany
+    input:
+      market_name: "Electric Vehicle Charging Networks — Germany"
+      entrant_description: "US-based EV startup, $50M Series B, proprietary 350kW charging technology"
+      incumbents:
+        - name: Ionity
+          estimated_market_share: 0.35
+          financial_strength: high
+          retaliation_history: medium
+      market_data:
+        estimated_size_usd: 2000000000
+        annual_growth_rate: 0.28
+        hhi: 2800
+      barrier_signals:
+        capital_requirement_usd: 25000000
+        regulatory_complexity: high
+        switching_costs: low
+        network_effects: medium
+      entrant_strengths:
+        - proprietary 350kW fast-charging technology
+        - strong balance sheet
+
+input:
+  type: object
+  required:
+    - market_name
+    - entrant_description
+    - incumbents
+    - market_data
+    - barrier_signals
+    - entrant_strengths
+  properties:
+    market_name:
+      type: string
+      description: "Name of the target market (e.g. 'EV Charging Networks — Germany')"
+    entrant_description:
+      type: string
+      description: "Description of the company seeking to enter the market"
+    incumbents:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required: [name, estimated_market_share, financial_strength, retaliation_history]
+        properties:
+          name: {type: string}
+          estimated_market_share: {type: number, minimum: 0, maximum: 1}
+          financial_strength: {type: string, enum: [low, medium, high]}
+          retaliation_history: {type: string, enum: [low, medium, high]}
+    market_data:
+      type: object
+      required: [estimated_size_usd, annual_growth_rate, hhi]
+      properties:
+        estimated_size_usd: {type: integer}
+        annual_growth_rate: {type: number}
+        hhi: {type: integer, minimum: 0, maximum: 10000,
+               description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"}
+    barrier_signals:
+      type: object
+      required: [capital_requirement_usd, regulatory_complexity, switching_costs, network_effects]
+      properties:
+        capital_requirement_usd: {type: integer}
+        regulatory_complexity: {type: string, enum: [low, medium, high]}
+        switching_costs: {type: string, enum: [low, medium, high]}
+        network_effects: {type: string, enum: [low, medium, high]}
+    entrant_strengths:
+      type: array
+      items: {type: string}
+
+output:
+  type: object
+  required:
+    - market_name
+    - dimensions
+    - entry_attractiveness_score
+    - verdict
+    - confidence
+    - critical_risks
+    - strategic_recommendation
+    - suggested_entry_mode
+  properties:
+    market_name: {type: string}
+    dimensions:
+      type: array
+      items:
+        type: object
+        properties:
+          name: {type: string}
+          score: {type: integer, minimum: 1, maximum: 5}
+          weight: {type: number}
+          key_factors: {type: array, items: {type: string}}
+          evidence: {type: string}
+    entry_attractiveness_score:
+      type: number
+      minimum: 0
+      maximum: 100
+      description: "Normalized score: 100 × (1 − (weighted_avg − 1) / 4)"
+    verdict:
+      type: string
+      enum: ["Attractive Entry", "Conditional Entry", "Avoid Entry"]
+    confidence:
+      type: string
+      enum: [low, medium, high]
+    critical_risks:
+      type: array
+      items: {type: string}
+    strategic_recommendation: {type: string}
+    suggested_entry_mode: {type: string}
+    html_report:
+      type: string
+      nullable: true
+      description: "Self-contained HTML report. Null when --json-only flag is used."
+
+tools:
+  - name: run_entry_analysis
+    description: >
+      Score a market entry opportunity across six Porter/Bain dimensions and return a
+      normalized Entry Attractiveness Score (0-100), verdict (Attractive/Conditional/Avoid),
+      per-dimension breakdown, critical risks, and strategic recommendation.
+    input_schema:
+      $ref: "#/input"
+
+entrypoint: main.py
+
+dependencies:
+  python:
+    - google-genai>=1.0.0
+    - pydantic>=2.0.0
+    - jinja2>=3.1.0
+    - python-dotenv>=1.0.0
