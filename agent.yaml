@@ -185,7 +185,51 @@ tools:
       normalized Entry Attractiveness Score (0-100), verdict (Attractive/Conditional/Avoid),
       per-dimension breakdown, critical risks, and strategic recommendation.
     input_schema:
-      $ref: "#/input"
+      type: object
+      required:
+        - market_name
+        - entrant_description
+        - incumbents
+        - market_data
+        - barrier_signals
+        - entrant_strengths
+      properties:
+        market_name:
+          type: string
+          description: "Name of the target market (e.g. 'EV Charging Networks — Germany')"
+        entrant_description:
+          type: string
+          description: "Description of the company seeking to enter the market"
+        incumbents:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [name, estimated_market_share, financial_strength, retaliation_history]
+            properties:
+              name: {type: string}
+              estimated_market_share: {type: number, minimum: 0, maximum: 1}
+              financial_strength: {type: string, enum: [low, medium, high]}
+              retaliation_history: {type: string, enum: [low, medium, high]}
+        market_data:
+          type: object
+          required: [estimated_size_usd, annual_growth_rate, hhi]
+          properties:
+            estimated_size_usd: {type: integer}
+            annual_growth_rate: {type: number}
+            hhi: {type: integer, minimum: 0, maximum: 10000,
+                   description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"}
+        barrier_signals:
+          type: object
+          required: [capital_requirement_usd, regulatory_complexity, switching_costs, network_effects]
+          properties:
+            capital_requirement_usd: {type: integer}
+            regulatory_complexity: {type: string, enum: [low, medium, high]}
+            switching_costs: {type: string, enum: [low, medium, high]}
+            network_effects: {type: string, enum: [low, medium, high]}
+        entrant_strengths:
+          type: array
+          items: {type: string}
 
 entrypoint: main.py
 
