@@ -7,8 +7,8 @@ from pydantic import ValidationError
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_dims(score: int, n: int = 5) -> list:
-    """Create n DimensionScore objects with equal weight (summing to 1.0) and uniform score."""
+def _make_dims(score: int, n: int = 6) -> list:
+    """Create n DimensionScore objects with equal weight (summing to 1.0) and uniform score. Default n=6 matches the production 6-dimension schema."""
     from schema import DimensionScore
     weight = round(1.0 / n, 10)
     return [
@@ -135,16 +135,16 @@ class TestEASFormula:
         assert result.entry_attractiveness_score == 50.0
 
     def test_weighted_avg_2_4_gives_eas_65(self):
-        """EAS boundary: wa=2.4 → EAS=65. Use 5 dims w=0.2, scores [2,2,2,3,3]."""
+        """EAS boundary: wa=2.4 → EAS=65. Use 5 dims w=0.2, scores [2,2,2,3,3], plus zero-weight 6th dim."""
         from agent import _recompute_scorecard
-        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2)])
+        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.entry_attractiveness_score == 65.0
 
     def test_weighted_avg_3_2_gives_eas_45(self):
-        """EAS boundary: wa=3.2 → EAS=45. Use 5 dims w=0.2, scores [3,3,3,3,4]."""
+        """EAS boundary: wa=3.2 → EAS=45. Use 5 dims w=0.2, scores [3,3,3,3,4], plus zero-weight 6th dim."""
         from agent import _recompute_scorecard
-        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2)])
+        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.entry_attractiveness_score == 45.0
 
@@ -165,16 +165,16 @@ class TestVerdictThresholds:
         """wa=2.4 → EAS=65 → exactly on ATTRACTIVE boundary."""
         from agent import _recompute_scorecard
         from schema import Verdict
-        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2)])
+        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.verdict == Verdict.ATTRACTIVE
 
-    def test_eas_64_is_conditional(self):
-        """wa just above 2.4 → EAS slightly below 65 → CONDITIONAL.
+    def test_eas_60_is_conditional(self):
+        """wa=2.6 → EAS=60 → CONDITIONAL.
         Use scores [2,2,3,3,3] w=0.2 → wa=2.6 → EAS=60."""
         from agent import _recompute_scorecard
         from schema import Verdict
-        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2), (3, 0.2)])
+        dims = _make_dims_custom([(2, 0.2), (2, 0.2), (3, 0.2), (3, 0.2), (3, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.verdict == Verdict.CONDITIONAL
 
@@ -182,7 +182,7 @@ class TestVerdictThresholds:
         """wa=3.2 → EAS=45 → exactly on lower CONDITIONAL boundary."""
         from agent import _recompute_scorecard
         from schema import Verdict
-        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2)])
+        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.verdict == Verdict.CONDITIONAL
 
@@ -190,7 +190,7 @@ class TestVerdictThresholds:
         """wa=3.4 → EAS=40 → AVOID. Scores [3,3,3,4,4] w=0.2 → wa=3.4."""
         from agent import _recompute_scorecard
         from schema import Verdict
-        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2), (4, 0.2)])
+        dims = _make_dims_custom([(3, 0.2), (3, 0.2), (3, 0.2), (4, 0.2), (4, 0.2), (3, 0.0)])
         result = _recompute_scorecard(_base_scorecard(dims))
         assert result.verdict == Verdict.AVOID
 

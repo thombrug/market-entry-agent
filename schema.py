@@ -1,9 +1,11 @@
 """Pydantic models for the Market Entry Attractiveness Agent."""
 from __future__ import annotations
 
+import math
 from enum import Enum
+from typing import Annotated
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +85,20 @@ class DimensionScore(BaseModel):
     evidence: str
     # weighted_score is intentionally excluded — computed post-call to avoid LLM arithmetic errors
 
+    @field_validator("score")
+    @classmethod
+    def validate_score(cls, v: int) -> int:
+        if not 1 <= v <= 5:
+            raise ValueError(f"score must be between 1 and 5, got {v}")
+        return v
+
+    @field_validator("weight")
+    @classmethod
+    def validate_weight(cls, v: float) -> float:
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(f"weight must be between 0.0 and 1.0, got {v}")
+        return v
+
 
 class Verdict(str, Enum):
     ATTRACTIVE = "Attractive Entry"
@@ -93,11 +109,19 @@ class Verdict(str, Enum):
 class EntryScorecardLLMOutput(BaseModel):
     """Fields produced by the LLM via response_schema. EAS and verdict excluded — computed post-call."""
     market_name: str
-    dimensions: list[DimensionScore]   # exactly 6 dimensions
+    dimensions: Annotated[list[DimensionScore], Field(min_length=6, max_length=6)]  # exactly 6 dimensions
     confidence: StrengthLevel
     critical_risks: list[str]
     strategic_recommendation: str
     suggested_entry_mode: str
+
+    @model_validator(mode="after")
+    def validate_weights_sum_to_one(self) -> "EntryScorecardLLMOutput":
+        if self.dimensions:
+            total = sum(d.weight for d in self.dimensions)
+            if not math.isclose(total, 1.0, abs_tol=1e-6):
+                raise ValueError(f"dimension weights must sum to 1.0, got {total:.6f}")
+        return self
 
 
 class EntryScorecard(EntryScorecardLLMOutput):
