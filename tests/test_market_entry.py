@@ -267,7 +267,7 @@ class TestRunAgentMocked:
 
         # Patch genai.Client to return our mock client
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-        monkeypatch.setattr("agent.genai.Client", lambda api_key: mock_client)
+        monkeypatch.setattr("agent.genai.Client", lambda **kwargs: mock_client)
 
         # Build a valid EntryAnalysisInput
         from schema import EntryAnalysisInput, IncumbentProfile, MarketData, BarrierSignals, StrengthLevel
@@ -327,7 +327,7 @@ class TestRunAgentMocked:
         mock_client.models.generate_content.return_value = mock_response
 
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-        monkeypatch.setattr("agent.genai.Client", lambda api_key: mock_client)
+        monkeypatch.setattr("agent.genai.Client", lambda **kwargs: mock_client)
 
         from schema import EntryAnalysisInput, IncumbentProfile, MarketData, BarrierSignals
         entry_input = EntryAnalysisInput(

@@ -13,7 +13,13 @@ def run_entry_analysis(entry_input: EntryAnalysisInput) -> EntryScorecard:
     Makes a single API call with response_schema=EntryScorecardLLMOutput,
     then deterministically computes EAS and verdict post-call.
     """
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY environment variable is not set. "
+            "Set it before running the agent."
+        )
+    client = genai.Client(api_key=api_key)
 
     user_prompt = build_user_prompt(entry_input.model_dump())
 
@@ -30,6 +36,12 @@ def run_entry_analysis(entry_input: EntryAnalysisInput) -> EntryScorecard:
     )
 
     llm_output: EntryScorecardLLMOutput = response.parsed
+
+    if llm_output is None:
+        raise ValueError(
+            f"Gemini returned no parsed output. "
+            f"finish_reason={response.candidates[0].finish_reason if response.candidates else 'unknown'}"
+        )
 
     # Promote to EntryScorecard with placeholder values (overwritten by _recompute_scorecard)
     scorecard = EntryScorecard(
