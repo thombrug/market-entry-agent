@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-entry-agent"
+version = "1.0.0"
+description = "Market Entry Attractiveness Agent using Google Gemini SDK"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0.0",
+    "pydantic>=2.0.0",
+    "jinja2>=3.1.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
