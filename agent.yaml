@@ -1,6 +1,8 @@
 name: market-entry-agent
 title: Market Entry Attractiveness Agent
 version: 1.0.0
+sdk: google
+install_command: pip install -e .
 license: MIT
 description: >
   Scores a market entry opportunity across six Porter/Bain dimensions — barriers to entry,
@@ -22,12 +24,12 @@ references:
     description: >
       McAfee, R.P., Mialon, H.M., & Williams, M.A. (2004). What Is a Barrier to Entry?
       American Economic Review, 94(2), 461-465. Primary economic definition of entry barriers.
-  - type: book
+  - type: publication
     id: Porter-1980
     description: >
       Porter, M.E. (1980). Competitive Strategy: Techniques for Analyzing Industries
       and Competitors. Free Press. Five Forces framework.
-  - type: book
+  - type: publication
     id: Bain-1956
     description: >
       Bain, J.S. (1956). Barriers to New Competition. Harvard University Press.
