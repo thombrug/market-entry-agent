@@ -108,6 +108,7 @@ input:
     incumbents:
       type: array
       minItems: 1
+      description: "List of existing competitors in the market (at least one required)"
       items:
         type: object
         required: [name, estimated_market_share, financial_strength, retaliation_history]
@@ -118,14 +119,19 @@ input:
           retaliation_history: {type: string, enum: [low, medium, high]}
     market_data:
       type: object
+      description: "Quantitative market metrics: size, growth rate, and concentration index"
       required: [estimated_size_usd, annual_growth_rate, hhi]
       properties:
         estimated_size_usd: {type: integer}
         annual_growth_rate: {type: number}
-        hhi: {type: integer, minimum: 0, maximum: 10000,
-               description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"}
+        hhi:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"
     barrier_signals:
       type: object
+      description: "Qualitative signals for Bain barriers to entry: capital, regulation, switching costs, network effects"
       required: [capital_requirement_usd, regulatory_complexity, switching_costs, network_effects]
       properties:
         capital_requirement_usd: {type: integer}
@@ -134,6 +140,7 @@ input:
         network_effects: {type: string, enum: [low, medium, high]}
     entrant_strengths:
       type: array
+      description: "List of competitive advantages the entrant brings to the market"
       items: {type: string}
 
 output:
@@ -148,9 +155,12 @@ output:
     - strategic_recommendation
     - suggested_entry_mode
   properties:
-    market_name: {type: string}
+    market_name:
+      type: string
+      description: "Name of the analyzed market, echoed from input"
     dimensions:
       type: array
+      description: "Six Porter/Bain dimension scores with weights, key factors, and evidence"
       items:
         type: object
         properties:
@@ -167,14 +177,21 @@ output:
     verdict:
       type: string
       enum: ["Attractive Entry", "Conditional Entry", "Avoid Entry"]
+      description: "Entry verdict: Attractive Entry (EAS≥65), Conditional Entry (45–64), Avoid Entry (<45)"
     confidence:
       type: string
       enum: [low, medium, high]
+      description: "Model confidence in the analysis given the quality and completeness of input data"
     critical_risks:
       type: array
       items: {type: string}
-    strategic_recommendation: {type: string}
-    suggested_entry_mode: {type: string}
+      description: "Top risks that could undermine a successful market entry"
+    strategic_recommendation:
+      type: string
+      description: "Narrative recommendation summarizing entry strategy given the scored dimensions"
+    suggested_entry_mode:
+      type: string
+      description: "Recommended entry mode (e.g. greenfield, joint venture, acquisition, licensing)"
     html_report:
       type: string
       nullable: true
@@ -205,6 +222,7 @@ tools:
         incumbents:
           type: array
           minItems: 1
+          description: "List of existing competitors in the market (at least one required)"
           items:
             type: object
             required: [name, estimated_market_share, financial_strength, retaliation_history]
@@ -215,14 +233,19 @@ tools:
               retaliation_history: {type: string, enum: [low, medium, high]}
         market_data:
           type: object
+          description: "Quantitative market metrics: size, growth rate, and concentration index"
           required: [estimated_size_usd, annual_growth_rate, hhi]
           properties:
             estimated_size_usd: {type: integer}
             annual_growth_rate: {type: number}
-            hhi: {type: integer, minimum: 0, maximum: 10000,
-                   description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"}
+            hhi:
+              type: integer
+              minimum: 0
+              maximum: 10000
+              description: "Herfindahl-Hirschman Index (0=perfect competition, 10000=monopoly)"
         barrier_signals:
           type: object
+          description: "Qualitative signals for Bain barriers to entry: capital, regulation, switching costs, network effects"
           required: [capital_requirement_usd, regulatory_complexity, switching_costs, network_effects]
           properties:
             capital_requirement_usd: {type: integer}
@@ -231,6 +254,7 @@ tools:
             network_effects: {type: string, enum: [low, medium, high]}
         entrant_strengths:
           type: array
+          description: "List of competitive advantages the entrant brings to the market"
           items: {type: string}
 
 entrypoint: main.py
