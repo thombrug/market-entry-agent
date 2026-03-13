@@ -342,3 +342,50 @@ class TestRunAgentMocked:
         result = agent.run_entry_analysis(entry_input)
         assert result.entry_attractiveness_score == 0.0
         assert result.verdict.value == "Avoid Entry"
+
+
+# ---------------------------------------------------------------------------
+# TestRenderer
+# ---------------------------------------------------------------------------
+
+class TestRenderer:
+
+    def _sample_scorecard(self):
+        from schema import (EntryScorecard, DimensionScore, StrengthLevel, Verdict)
+        fixed_weights = [0.30, 0.25, 0.20, 0.15, 0.05, 0.05]
+        names = ["Barriers to Entry", "Incumbent Retaliation Risk",
+                 "Market Attractiveness", "Competitive Rivalry",
+                 "Buyer Power", "Supplier Power"]
+        dims = [
+            DimensionScore(name=n, score=2, weight=w,
+                           key_factors=["Strong tech barrier"],
+                           evidence="Capital requirements are high.")
+            for n, w in zip(names, fixed_weights)
+        ]
+        return EntryScorecard(
+            market_name="EV Charging Germany",
+            dimensions=dims,
+            confidence=StrengthLevel.MEDIUM,
+            critical_risks=["Ionity may retaliate with pricing"],
+            strategic_recommendation="The market is attractive but capital-intensive.",
+            suggested_entry_mode="niche differentiation",
+            entry_attractiveness_score=75.0,
+            verdict=Verdict.ATTRACTIVE,
+        )
+
+    def test_render_report_returns_html_string(self):
+        from renderer import render_report
+        html = render_report(self._sample_scorecard())
+        assert isinstance(html, str)
+        assert "<!DOCTYPE html>" in html
+        assert "EV Charging Germany" in html
+
+    def test_render_report_includes_verdict(self):
+        from renderer import render_report
+        html = render_report(self._sample_scorecard())
+        assert "Attractive Entry" in html
+
+    def test_render_report_includes_eas_score(self):
+        from renderer import render_report
+        html = render_report(self._sample_scorecard())
+        assert "75" in html  # EAS score
