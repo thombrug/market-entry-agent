@@ -1,7 +1,44 @@
 """Core agent logic: Gemini API call and post-call EAS recomputation."""
 from __future__ import annotations
+import os
+from google import genai
+from google.genai import types
+from schema import EntryAnalysisInput, EntryScorecard, EntryScorecardLLMOutput, Verdict
+from prompts import SYSTEM_PROMPT, build_user_prompt
 
-from schema import EntryScorecard, Verdict
+
+def run_entry_analysis(entry_input: EntryAnalysisInput) -> EntryScorecard:
+    """Run market entry analysis using Gemini with structured output.
+
+    Makes a single API call with response_schema=EntryScorecardLLMOutput,
+    then deterministically computes EAS and verdict post-call.
+    """
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+    user_prompt = build_user_prompt(entry_input.model_dump())
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            types.Content(role="user", parts=[types.Part(text=user_prompt)])
+        ],
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            response_mime_type="application/json",
+            response_schema=EntryScorecardLLMOutput,
+        ),
+    )
+
+    llm_output: EntryScorecardLLMOutput = response.parsed
+
+    # Promote to EntryScorecard with placeholder values (overwritten by _recompute_scorecard)
+    scorecard = EntryScorecard(
+        **llm_output.model_dump(),
+        entry_attractiveness_score=0.0,
+        verdict=Verdict.CONDITIONAL,
+    )
+
+    return _recompute_scorecard(scorecard)
 
 
 def _recompute_scorecard(scorecard: EntryScorecard) -> EntryScorecard:

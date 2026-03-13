@@ -223,3 +223,122 @@ class TestVerdictThresholds:
         from schema import Verdict
         result = _recompute_scorecard(_base_scorecard(_make_dims(5)))
         assert result.verdict == Verdict.AVOID
+
+
+# ---------------------------------------------------------------------------
+# TestRunAgentMocked
+# ---------------------------------------------------------------------------
+
+class TestRunAgentMocked:
+    """Test run_entry_analysis using a mocked Gemini client."""
+
+    def _make_llm_output(self) -> "EntryScorecardLLMOutput":
+        """Build a valid EntryScorecardLLMOutput (all dims score=2, EAS should be 75.0)."""
+        from schema import DimensionScore, StrengthLevel, EntryScorecardLLMOutput
+        dims = [
+            DimensionScore(name="Barriers to Entry",          score=2, weight=0.30, key_factors=["low capital"], evidence="Low barriers"),
+            DimensionScore(name="Incumbent Retaliation Risk", score=2, weight=0.25, key_factors=["passive incumbents"], evidence="Low risk"),
+            DimensionScore(name="Market Attractiveness",      score=2, weight=0.20, key_factors=["growing market"], evidence="High growth"),
+            DimensionScore(name="Competitive Rivalry",        score=2, weight=0.15, key_factors=["few competitors"], evidence="Low rivalry"),
+            DimensionScore(name="Buyer Power",                score=2, weight=0.05, key_factors=["fragmented buyers"], evidence="Weak buyers"),
+            DimensionScore(name="Supplier Power",             score=2, weight=0.05, key_factors=["many suppliers"], evidence="Weak suppliers"),
+        ]
+        return EntryScorecardLLMOutput(
+            market_name="Test Market",
+            dimensions=dims,
+            confidence=StrengthLevel.HIGH,
+            critical_risks=["test risk"],
+            strategic_recommendation="Enter the market",
+            suggested_entry_mode="Direct entry",
+        )
+
+    def test_run_entry_analysis_computes_eas_and_verdict(self, monkeypatch):
+        """Mock Gemini API call; verify EAS and verdict are computed correctly."""
+        from unittest.mock import MagicMock
+        import agent
+
+        llm_output = self._make_llm_output()
+
+        mock_response = MagicMock()
+        mock_response.parsed = llm_output
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        # Patch genai.Client to return our mock client
+        monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+        monkeypatch.setattr("agent.genai.Client", lambda api_key: mock_client)
+
+        # Build a valid EntryAnalysisInput
+        from schema import EntryAnalysisInput, IncumbentProfile, MarketData, BarrierSignals, StrengthLevel
+        entry_input = EntryAnalysisInput(
+            market_name="Test Market",
+            entrant_description="Test entrant",
+            incumbents=[IncumbentProfile(
+                name="Incumbent A",
+                estimated_market_share=0.5,
+                financial_strength=StrengthLevel.MEDIUM,
+                retaliation_history=StrengthLevel.LOW,
+            )],
+            market_data=MarketData(estimated_size_usd=1_000_000, annual_growth_rate=0.10, hhi=2500),
+            barrier_signals=BarrierSignals(
+                capital_requirement_usd=1_000_000,
+                regulatory_complexity=StrengthLevel.LOW,
+                switching_costs=StrengthLevel.LOW,
+                network_effects=StrengthLevel.LOW,
+            ),
+            entrant_strengths=["strong tech"],
+        )
+
+        result = agent.run_entry_analysis(entry_input)
+
+        # All dims score=2, EAS should be 75.0 (Attractive Entry)
+        assert result.entry_attractiveness_score == 75.0
+        assert result.verdict.value == "Attractive Entry"
+        assert result.market_name == "Test Market"
+        assert result.html_report is None  # renderer not called in agent
+
+    def test_run_entry_analysis_avoid_verdict(self, monkeypatch):
+        """Mock with all dims score=5 → EAS=0 → Avoid Entry."""
+        from unittest.mock import MagicMock
+        import agent
+        from schema import DimensionScore, StrengthLevel, EntryScorecardLLMOutput
+
+        dims = [
+            DimensionScore(name="Barriers to Entry",          score=5, weight=0.30, key_factors=["high barriers"], evidence="Very high"),
+            DimensionScore(name="Incumbent Retaliation Risk", score=5, weight=0.25, key_factors=["aggressive"], evidence="High risk"),
+            DimensionScore(name="Market Attractiveness",      score=5, weight=0.20, key_factors=["declining"], evidence="Shrinking"),
+            DimensionScore(name="Competitive Rivalry",        score=5, weight=0.15, key_factors=["intense"], evidence="Very high"),
+            DimensionScore(name="Buyer Power",                score=5, weight=0.05, key_factors=["powerful buyers"], evidence="Strong"),
+            DimensionScore(name="Supplier Power",             score=5, weight=0.05, key_factors=["few suppliers"], evidence="Strong"),
+        ]
+        llm_output = EntryScorecardLLMOutput(
+            market_name="Bad Market",
+            dimensions=dims,
+            confidence=StrengthLevel.HIGH,
+            critical_risks=["everything"],
+            strategic_recommendation="Avoid",
+            suggested_entry_mode="None",
+        )
+
+        mock_response = MagicMock()
+        mock_response.parsed = llm_output
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+        monkeypatch.setattr("agent.genai.Client", lambda api_key: mock_client)
+
+        from schema import EntryAnalysisInput, IncumbentProfile, MarketData, BarrierSignals
+        entry_input = EntryAnalysisInput(
+            market_name="Bad Market",
+            entrant_description="Brave entrant",
+            incumbents=[IncumbentProfile(name="Giant Corp", estimated_market_share=0.9, financial_strength=StrengthLevel.HIGH, retaliation_history=StrengthLevel.HIGH)],
+            market_data=MarketData(estimated_size_usd=100_000, annual_growth_rate=-0.05, hhi=8000),
+            barrier_signals=BarrierSignals(capital_requirement_usd=100_000_000, regulatory_complexity=StrengthLevel.HIGH, switching_costs=StrengthLevel.HIGH, network_effects=StrengthLevel.HIGH),
+            entrant_strengths=["optimism"],
+        )
+
+        result = agent.run_entry_analysis(entry_input)
+        assert result.entry_attractiveness_score == 0.0
+        assert result.verdict.value == "Avoid Entry"
