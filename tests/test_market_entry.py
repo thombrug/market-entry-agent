@@ -112,6 +112,30 @@ class TestInputSchemaValidation:
                 entrant_strengths=["tech"],
             )
 
+    def test_dimension_score_score_above_5_raises(self):
+        from schema import DimensionScore
+        with pytest.raises(ValidationError):
+            DimensionScore(name="TestDim", score=6, weight=0.1,
+                          key_factors=["test"], evidence="test evidence")
+
+    def test_dimension_score_score_below_1_raises(self):
+        from schema import DimensionScore
+        with pytest.raises(ValidationError):
+            DimensionScore(name="TestDim", score=0, weight=0.1,
+                          key_factors=["test"], evidence="test evidence")
+
+    def test_weights_not_summing_to_one_raises(self):
+        from schema import EntryScorecardLLMOutput, StrengthLevel
+        with pytest.raises(ValidationError):
+            EntryScorecardLLMOutput(
+                market_name="Test Market",
+                dimensions=_make_dims_custom([(1, 0.2), (2, 0.2), (3, 0.2), (4, 0.2), (5, 0.2), (1, 0.2)]),
+                confidence=StrengthLevel.MEDIUM,
+                critical_risks=["test risk"],
+                strategic_recommendation="Test recommendation.",
+                suggested_entry_mode="niche differentiation",
+            )
+
 
 # ---------------------------------------------------------------------------
 # TestEASFormula
