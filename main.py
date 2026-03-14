@@ -40,13 +40,13 @@ def _save_outputs(scorecard, output_dir: Path, json_only: bool) -> None:
     output_dict.pop("html_report", None)
 
     json_path = output_dir / "entry_output.json"
-    json_path.write_text(json.dumps(output_dict, indent=2))
+    json_path.write_text(json.dumps(output_dict, indent=2), encoding="utf-8")
     print(f"JSON saved to {json_path}", file=sys.stderr)
 
     if not json_only:
         html = render_report(scorecard)
         html_path = output_dir / "entry_report.html"
-        html_path.write_text(html)
+        html_path.write_text(html, encoding="utf-8")
         print(f"HTML report saved to {html_path}", file=sys.stderr)
 
 
@@ -76,12 +76,18 @@ Examples:
                         help="Directory to write output files (default: .)")
     args = parser.parse_args()
 
+    # When stdin is piped (not a TTY), default to --no-save so the CLI
+    # contract is pure stdin-json / stdout-json without file side-effects.
+    piped = not sys.stdin.isatty()
+    if piped and not args.no_save:
+        args.no_save = True
+
     # Load input
     if args.example:
         entry_input = _load_example()
     elif args.input_file:
         entry_input = _load_file(args.input_file)
-    elif not sys.stdin.isatty():
+    elif piped:
         entry_input = _load_stdin()
     else:
         print("No input provided — running built-in EV charging example.",

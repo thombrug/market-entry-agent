@@ -17,5 +17,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0.0"]
 
+[tool.setuptools]
+py-modules = ["agent", "main", "prompts", "renderer", "schema"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
